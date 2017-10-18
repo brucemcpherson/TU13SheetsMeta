@@ -63,7 +63,7 @@ function search () {
   var rowLevel = cSAM.SAM.searchByKey (SSID , "originalFirstAirport");
   var colLevel = cSAM.SAM.searchByKey (SSID , "municipalityColumn");
 
-  
+  Logger.log (JSON.stringify(colLevel));
   Logger.log (JSON.stringify(cSAM.SAM.tidyMatched(colLevel)));
 
 }
