@@ -155,7 +155,7 @@ var SAM = (function (ns) {
       };
       
       
-    }
+    };
     
    
 /**
