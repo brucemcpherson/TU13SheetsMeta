@@ -36,22 +36,27 @@ var SAM = (function (ns) {
     
   };
   
+  
   /**
-   * return the search results
+   * return the search results doing multiple datafilters
    * @param {string} ssid the ssid
-   * @param {string} key the key
+   * @param {string[]} keys the key(s)
    * @return {replies || null}
    */
-  ns.searchByKey = function (ssId, key) {
-  
+  ns.searchByKey = function (ssId, keys) {
+    
+    if (!Array.isArray(keys)) keys = [keys];
+    
     return Sheets.Spreadsheets.DeveloperMetadata.search({
-      dataFilters:[{
-        developerMetadataLookup: {
-          metadataKey: key
-        }}]
-    }, ssId);
+      dataFilters:keys.map (function (k) {
+        return {
+          developerMetadataLookup: {
+            metadataKey: k
+          }};
+      })}, ssId);
 
-  }
+  };
+  
   
   /**
    * tidy the get Values result - just the first one.
@@ -103,12 +108,17 @@ var SAM = (function (ns) {
     ns.getIntersection = function (ssId, rowKey , colKey) {
       
       // do the searches and use the latest keys
-      var rowMeta = ns.searchByKey (ssId , rowKey);
-      var colMeta = ns.searchByKey (ssId , colKey);
-      
+      // we can get them both with a single search
+      var meta = ns.searchByKey (ssId , [rowKey, colKey]);
+
       // tidy that up
-      var rowTidy = rowMeta && ns.tidyMatched (rowMeta);
-      var colTidy = colMeta && ns.tidyMatched (colMeta);
+      var tidyMeta = ns.tidyMatched (meta);
+      var rowTidy = tidyMeta.filter(function (d) {
+        return d.key === rowKey;
+      });
+      var colTidy = tidyMeta.filter(function (d) {
+        return d.key === colKey;
+      });
       
       // now we show have dimension ranges, just use the latest
       if (!rowTidy || !colTidy || !rowTidy.length || !colTidy.length) return function (ss) {
