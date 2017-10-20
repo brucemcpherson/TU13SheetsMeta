@@ -4,129 +4,9 @@ var DUPNAME = ORIGINAL + "-play";
 
 
 /**
- * -- get all the data associated with a given metadata
- */
-function getData () {
-
-  // get sheet level data
-  Logger.log ( getTidyValues ( "sheetDetails"));
- 
-  // get column level data
-  Logger.log ( getTidyValues ( "municipalityColumn"));
-  
-  // get row level data
-  Logger.log ( getTidyValues ( "originalFirstAirport"));
-  
-}
-
-/**
- * -- get all the data associated with a given metadata
- * -- tidy up the return resource from the values spreadsheets API
- * @param {string} key the key
- * @return {[][]} the tidied data
- */
-function getTidyValues ( key ) {
-  
-  // get the sheet values 
-  var sheetValues = cSAM.SAM.getByDataFilters (SSID, key);
-  
-  // tidy them up
-  return cSAM.SAM.tidyValues(sheetValues);
-
-}
-
-/**
- * get the data at given intersection
- */
-function getCellData() {
-  var ss = SpreadsheetApp.openById(SSID);
-  var range = cSAM.SAM.getIntersection ( ss.getId()  , "originalFirstAirport", "municipalityColumn")(ss);
-  var values;
-  if (range) {
-    values = range.getValues();
-  }
-  Logger.log (values);
-  
-
-  return ;
- 
-}
-
- /**
-  * search by a given key
-  */
-function search () {
-
-  // get various
-  var sLevel = cSAM.SAM.searchByKey (SSID , "spreadsheetDetails");
-  var shLevel = cSAM.SAM.searchByKey (SSID , "sheetDetails");
-  var rowLevel = cSAM.SAM.searchByKey (SSID , "originalFirstAirport");
-  var colLevel = cSAM.SAM.searchByKey (SSID , "municipalityColumn");
-
-  Logger.log (JSON.stringify(colLevel));
-  Logger.log (JSON.stringify(cSAM.SAM.tidyMatched(colLevel)));
-
-}
-
-function cleanUp () {
-  
-  // get all the things and delete them in one go
-  var requests = ["spreadsheetDetails","sheetDetails","originalFirstAirport","municipalityColumn"]
-   .map (function (d) {
-     return {
-       deleteDeveloperMetadata: {
-         dataFilter:{
-           developerMetadataLookup: {
-           metadataKey: d
-         }}
-       }};
-      });
-
-  Logger.log (JSON.stringify(requests));
-  if (requests.length) {
-    var result = Sheets.Spreadsheets.batchUpdate({requests:requests}, SSID);
-    Logger.log (JSON.stringify(result));
-  }
-
-  
-}
-function cleanUpUsingIds () {
-
-  // get all the things and delete them in one go
-  var requests = ["spreadsheetDetails","sheetDetails","originalFirstAirport","municipalityColumn"]
-    .map (function (d) {
-      return searchByKey (SSID, d);
-    })
-    .map (function (d) {
-      return (d.matchedDeveloperMetadata || []).map (function (e) {
-        return e.developerMetadata.metadataId;
-      });
-    })
-    .reduce (function (p,c) {
-      c.forEach (function (d) {
-        p.push( {
-          deleteDeveloperMetadata: {
-            dataFilter:{
-              developerMetadataLookup: {
-                // we'll use the id
-                metadataId: d
-            }}
-          }
-        });
-      });
-      return p;
-    },[]);
-  Logger.log (JSON.stringify(requests));
-  if (requests.length) {
-    var result = Sheets.Spreadsheets.batchUpdate({requests:requests}, SSID);
-    Logger.log (JSON.stringify(result));
-  }
-
-  
-}
-
-/**
  * setup some pieces of metadata
+ * copy the template sheet to a new one to play around with
+ * create 5 developermetadata items
  */
 function setup() {
   
@@ -140,6 +20,9 @@ function setup() {
     
   // create some meta data && take a look at the responses
   var created = createSomeMetaData();
+  
+  
+  Logger.log ("-------Response from API create batch request");
   Logger.log (JSON.stringify (created));
   
   // actually we'll just  bother looking at the ids & key & value
@@ -150,16 +33,17 @@ function setup() {
       value:JSON.parse(d.createDeveloperMetadata.developerMetadata.metadataValue)
     };
   });
-  
+ 
+  Logger.log ("-------Tidied up response from API create batch request"); 
   Logger.log (JSON.stringify(tidy));
   
   
   // you can get by id
   var gotById = Sheets.Spreadsheets.DeveloperMetadata.get (SSID , tidy[0].id);
+  Logger.log ("-------Response from API get by ID");
   Logger.log (JSON.stringify(gotById));
   
-  // but mainly we'll be using search
-  
+  //---local functions ---
   function createSomeMetaData(){
 
     // create some developer data 
@@ -247,6 +131,29 @@ function setup() {
           },
           visibility:"DOCUMENT"      
         }
+      }}, {
+      
+      // stuff for a column level -- I'll use this one in a later demo
+      // CreateDeveloperMetadataRequest
+      createDeveloperMetadata:{
+        // DeveloperMetaData
+        developerMetadata:{
+          // DeveloperMetaDataLocation with column scope  
+          metadataKey:"timestampColumn",
+          metadataValue:JSON.stringify({
+            writtenBy:Session.getActiveUser().getEmail(),
+            createdAt:new Date().getTime()
+          }),
+          location:{  
+            dimensionRange: {
+              sheetId:sheet.getSheetId(),
+              dimension:"COLUMNS",
+              startIndex:8,             //(column 9)
+              endIndex:9                // actually only 1 row (works like .slice)
+            }
+          },
+          visibility:"DOCUMENT"      
+        }
       }}
       
       
@@ -266,9 +173,171 @@ function setup() {
     return sheet;
   }
 
+}
+
+/**
+ * search by a given key
+ */
+function search () {
+
+  /**
+   * a search by key looks like this
+   * you can search by multple keys at once.
+   * Sheets.Spreadsheets.DeveloperMetadata.search({
+      dataFilters:[{
+        developerMetadataLookup: {
+          metadataKey: key
+        }}]
+    }, ssId);
+   * which is what's in the library
+   */
+   
+  // do multiple searches
+  var sLevel = cSAM.SAM.searchByKey (SSID , "spreadsheetDetails");
+  var shLevel = cSAM.SAM.searchByKey (SSID , "sheetDetails");
+  var rowLevel = cSAM.SAM.searchByKey (SSID , "originalFirstAirport");
+  var colLevel = cSAM.SAM.searchByKey (SSID , "municipalityColumn");
+
+  Logger.log ("------------API response from search by key");
+  Logger.log (JSON.stringify(colLevel));
   
+  Logger.log ("------------Tidied API response from search by key");
+  Logger.log (JSON.stringify(cSAM.SAM.tidyMatched(colLevel)));
+
+  // can do multiple searches at once
+  var results = cSAM.SAM.searchByKey (SSID , ["spreadsheetDetails", "sheetDetails" , "originalFirstAirport" , "municipalityColumn"]);
+  Logger.log ("------------Tidied API response from search by keys");
+  Logger.log (JSON.stringify(cSAM.SAM.tidyMatched(results)));
+}
+
+
+/**
+ * -- get all the data associated with a given metadata
+ */
+function getData () {
+
+  // get sheet level data
+  var values = getTidyValues ( "sheetDetails");
+  Logger.log ("------------slice of tidied API response from getByDataFilters-sheet");
+  Logger.log ( JSON.stringify (values).slice(0,200));
+ 
+  // get column level data
+  var values = getTidyValues ( "municipalityColumn");
+  Logger.log ("------------slice of tidied API response from getByDataFilters-column");
+  Logger.log ( JSON.stringify (values).slice(0,200));
+  
+  // get row level data
+  var values = getTidyValues ( "originalFirstAirport")
+  Logger.log ("------------slice of tidied API response from getByDataFilters-row");
+  Logger.log ( JSON.stringify (values).slice(0,200));
   
 }
+
+/**
+ * -- get all the data associated with a given metadata
+ * -- tidy up the return resource from the values spreadsheets API
+ * @param {string} key the key
+ * @return {[][]} the tidied data
+ */
+function getTidyValues ( key ) {
+  
+  // get the sheet values 
+  var sheetValues = cSAM.SAM.getByDataFilters (SSID, key);
+  Logger.log ("------------slice of API response from getByDataFilters");
+  Logger.log (JSON.stringify(sheetValues).slice(0,240));
+  // tidy them up
+  return cSAM.SAM.tidyValues(sheetValues);
+
+}
+/**
+ * get the data at given intersection
+ */
+function getCellData() {
+  var ss = SpreadsheetApp.openById(SSID);
+  
+  // note that getIntersection returns a closure function 
+  // that knows how to make a range given a spreadsheetApp
+  var makeRangeFunction = cSAM.SAM.getIntersection ( ss.getId()  , "originalFirstAirport", "municipalityColumn");
+  // take a look at the code of that function
+  Logger.log (makeRangeFunction.toString());
+  
+  // make the range
+  var range = makeRangeFunction(ss);
+  
+  // get the values
+  var values;
+  if (range) {
+    values = range.getValues();
+  }
+  
+  // should be the municipality of the original first airport
+  Logger.log (values);
+  
+
+  return ;
+ 
+}
+
+
+
+
+
+function cleanUp () {
+  
+  // get all the things and delete them in one go
+  var requests = ["spreadsheetDetails","sheetDetails","originalFirstAirport","municipalityColumn","timestampColumn"]
+   .map (function (d) {
+     return {
+       deleteDeveloperMetadata: {
+         dataFilter:{
+           developerMetadataLookup: {
+           metadataKey: d
+         }}
+       }};
+      });
+
+  if (requests.length) {
+    var result = Sheets.Spreadsheets.batchUpdate({requests:requests}, SSID);
+  }
+
+  
+}
+function cleanUpUsingIds () {
+
+  // get all the things and delete them in one go
+  var requests = ["spreadsheetDetails","sheetDetails","originalFirstAirport","municipalityColumn","timestampColumn"]
+    .map (function (d) {
+      return cSAM.SAM.searchByKey (SSID, d);
+    })
+    .map (function (d) {
+      return (d.matchedDeveloperMetadata || []).map (function (e) {
+        return e.developerMetadata.metadataId;
+      });
+    })
+    .reduce (function (p,c) {
+      c.forEach (function (d) {
+        p.push( {
+          deleteDeveloperMetadata: {
+            dataFilter:{
+              developerMetadataLookup: {
+                // we'll use the id
+                metadataId: d
+            }}
+          }
+        });
+      });
+      return p;
+    },[]);
+  Logger.log (JSON.stringify(requests));
+  if (requests.length) {
+    var result = Sheets.Spreadsheets.batchUpdate({requests:requests}, SSID);
+    Logger.log (JSON.stringify(result));
+  }
+
+  
+}
+
+
 /*-------------------CreateDeveloperMetadataRequest
 {
   "developerMetadata": {
