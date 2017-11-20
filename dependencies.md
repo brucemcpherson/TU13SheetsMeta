@@ -1,5 +1,5 @@
 # Google Apps Script Project: TU13SheetsMeta
-This repo (TU13SheetsMeta) was automatically updated on 20 October 2017 12:47:20 BST by GasGit
+This repo (TU13SheetsMeta) was automatically updated on 20 November 2017 12:45:28 GMT by GasGit
 
 For more information see the [desktop liberation site](http://ramblings.mcpher.com/Home/excelquirks/drivesdk/gettinggithubready "desktop liberation") or [contact me on G+](https://plus.google.com/+BruceMcpherson "Bruce McPherson - GDE")
 ## Details for Apps Script project TU13SheetsMeta
