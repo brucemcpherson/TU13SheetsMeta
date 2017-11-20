@@ -259,7 +259,7 @@ function getCellData() {
   // that knows how to make a range given a spreadsheetApp
   var makeRangeFunction = cSAM.SAM.getIntersection ( ss.getId()  , "originalFirstAirport", "municipalityColumn");
   // take a look at the code of that function
-  Logger.log (makeRangeFunction.toString());
+  //Logger.log (makeRangeFunction.toString());
   
   // make the range
   var range = makeRangeFunction(ss);
